@@ -2,6 +2,30 @@ import speedtest
 from prometheus_client import start_http_server, Gauge
 import time
 import os
+import logging
+import json
+import sys
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+            "filename": record.filename,
+            "lineno": record.lineno,
+            "function": record.funcName,
+        }
+        return json.dumps(log_record)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JsonFormatter())
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 # Define Prometheus metrics
 download_speed = Gauge('internet_download_mbps', 'Download speed in Mbps')
@@ -17,7 +41,7 @@ POLLING_INTERVAL_MINUTES = os.getenv("POLLING_INTERVAL_MINUTES","15")
 def simulate_speed_test():
     while True:
         try:
-            # Replace this with real values from speedtest or librespeed
+            logger.info("testing connection...")
             st = speedtest.Speedtest()
             st.get_best_server()
 
@@ -25,7 +49,9 @@ def simulate_speed_test():
             download = st.download()
             upload = st.upload()
             online = 1
-        except:
+            logger.info(f"connection tested. Ping:{ping}, Download:{download}, Upload:{upload}")
+        except Exception as e:
+            logger.error(e)
             ping = 0
             download = 0
             upload = 0
